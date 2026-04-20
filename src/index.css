@@ -1,0 +1,283 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 24 95% 53%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 24 95% 90%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 24 95% 53%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 24 95% 53%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 24 95% 90%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 24 95% 53%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 24 90% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 24 90% 20%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 24 90% 50%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 24 90% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 24 90% 20%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 24 90% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.mapboxgl-popup-content {
+  @apply bg-background border border-border rounded-md shadow-lg p-4;
+}
+
+.mapboxgl-popup-close-button {
+  @apply text-foreground p-1;
+}
+
+/* 3D Marker Styles */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+}
+
+.pothole-marker-3d {
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+  z-index: 1;
+}
+
+.pothole-marker-3d:hover {
+  z-index: 10;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.4));
+}
+
+/* Custom Mapbox Controls for 3D */
+.mapboxgl-ctrl-group {
+  @apply rounded-lg shadow-lg;
+}
+
+.mapboxgl-ctrl-compass {
+  @apply rounded-lg;
+}
+
+/* Popup styling for 3D view */
+.pothole-popup .mapboxgl-popup-content {
+  @apply rounded-lg shadow-2xl;
+  min-width: 200px;
+}
+
+.pothole-popup .mapboxgl-popup-tip {
+  border-top-color: white;
+}
+
+/* Enhanced popup styling */
+.pothole-popup-enhanced .mapboxgl-popup-content {
+  @apply rounded-2xl shadow-2xl border border-gray-200;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(12px);
+  animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pothole-popup-enhanced .mapboxgl-popup-tip {
+  border-top-color: rgba(255, 255, 255, 0.98);
+}
+
+.pothole-popup-enhanced .mapboxgl-popup-close-button {
+  @apply text-gray-400 hover:text-gray-600 transition-colors;
+  font-size: 20px;
+  padding: 8px 12px;
+  right: 4px;
+  top: 4px;
+  transition: all 0.2s ease;
+}
+
+.pothole-popup-enhanced .mapboxgl-popup-close-button:hover {
+  transform: scale(1.1);
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 50%;
+}
+
+/* Floating Panel Styles */
+.floating-panel {
+  @apply bg-white/90 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20;
+}
+
+/* Smooth animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes scaleOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-fade-out {
+  animation: fadeOut 0.3s ease-in;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-slide-out-right {
+  animation: slideOutRight 0.3s cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-scale-out {
+  animation: scaleOut 0.2s cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+/* Hide Mapbox attribution and logo */
+.mapboxgl-ctrl-attrib {
+  display: none !important;
+}
+
+.mapboxgl-ctrl-logo {
+  display: none !important;
+}
+
+/* Hide any Mapbox attribution elements */
+.mapboxgl-ctrl-bottom-left .mapboxgl-ctrl-attrib,
+.mapboxgl-ctrl-bottom-right .mapboxgl-ctrl-attrib {
+  display: none !important;
+}

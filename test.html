@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Supabase Test</title>
+</head>
+<body>
+    <h1>Testing Supabase Connection</h1>
+    <div id="output"></div>
+
+    <script type="module">
+        import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+        const SUPABASE_URL = 'https://pwyiicmaaxcckyqenrqz.supabase.co';
+        const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_Pb7W187OJrMaSwycukS38w_-9GyR7ZD';
+
+        const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+        const output = document.getElementById('output');
+
+        async function testConnection() {
+            try {
+                output.innerHTML += '<p>Testing connection...</p>';
+
+                const { data, error, count } = await supabase
+                    .from('potholes')
+                    .select('*', { count: 'exact' });
+
+                if (error) {
+                    output.innerHTML += '<p style="color: red;">Error: ' + JSON.stringify(error) + '</p>';
+                } else {
+                    output.innerHTML += '<p style="color: green;">Success! Found ' + count + ' potholes</p>';
+                    output.innerHTML += '<p>Data length: ' + (data ? data.length : 0) + '</p>';
+                }
+            } catch (e) {
+                output.innerHTML += '<p style="color: red;">Exception: ' + e.message + '</p>';
+            }
+        }
+
+        testConnection();
+    </script>
+</body>
+</html>
+
