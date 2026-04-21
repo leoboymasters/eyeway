@@ -1,0 +1,23 @@
+# Raspberry Pi 5 (ARM64) runtime — no torch, no ultralytics. See PI5.md.
+#
+# Example checkout: ~/Desktop/eyeway_pi $
+#
+# 1) Install PyQt5 via apt BEFORE creating the venv:
+#    sudo apt install -y python3-pyqt5 python3-pyqt5.qtmultimedia libgl1 libglib2.0-0 python3-venv
+#
+# 2) Venv in repo root (used by start_pi.sh):
+#    python3 -m venv .venv-pi --system-site-packages
+#    source .venv-pi/bin/activate
+#    pip install --upgrade pip
+#    pip install -r requirements.txt
+#
+# Thesis tree: use edge_deployment/.venv-pi and this file as pi_app/requirements.txt
+
+onnxruntime>=1.17.0
+opencv-python-headless>=4.8.0
+numpy>=1.24.0
+Pillow>=10.0.0
+pyyaml>=6.0
+# Live GPS over serial (NMEA 0183). Optional at runtime — the app logs
+# "GPS disabled" and continues if pyserial or the device is missing.
+pyserial>=3.5
