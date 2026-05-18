@@ -74,6 +74,7 @@ export type Database = {
           fusion_idempotency_key: string | null
           fusion_ok: boolean | null
           fusion_ts: string | null
+          gemini_analysis: Json | null
           id: string
           image_url: string | null
           frame_image_url: string | null
@@ -113,6 +114,7 @@ export type Database = {
           fusion_idempotency_key?: string | null
           fusion_ok?: boolean | null
           fusion_ts?: string | null
+          gemini_analysis?: Json | null
           id?: string
           image_url?: string | null
           frame_image_url?: string | null
@@ -152,6 +154,7 @@ export type Database = {
           fusion_idempotency_key?: string | null
           fusion_ok?: boolean | null
           fusion_ts?: string | null
+          gemini_analysis?: Json | null
           id?: string
           image_url?: string | null
           frame_image_url?: string | null

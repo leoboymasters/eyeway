@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Sparkles, Square } from 'lucide-react';
+import { Sparkle, Square } from 'lucide-react';
 
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
@@ -111,15 +111,20 @@ export function GeminiBatchFab({ potholes, railOpen, isMobile }: GeminiBatchFabP
       if (isGeminiBatchCurrent(p.id, stamp)) {
         const entry = getGeminiBatchEntry(p.id);
         const existingDesc = (data as { description?: string | null }).description?.trim();
-        if (entry && !existingDesc) {
+        const existingAnalysis =
+          'gemini_analysis' in data ? (data as { gemini_analysis?: unknown }).gemini_analysis : null;
+        // Backfill the DB if the localStorage cache has a verdict but Supabase doesn't yet.
+        if (entry && (!existingAnalysis || !existingDesc)) {
           const desc = entry.analysis.scene_summary.trim();
-          if (desc) {
-            const { error: upErr } = await supabase
-              .from('potholes')
-              .update({ description: desc })
-              .eq('id', p.id);
+          const upd: { gemini_analysis?: unknown; description?: string } = {};
+          if (!existingAnalysis) upd.gemini_analysis = entry.analysis;
+          if (!existingDesc && desc) upd.description = desc;
+          if (Object.keys(upd).length > 0) {
+            const { error: upErr } = await supabase.from('potholes').update(upd).eq('id', p.id);
             if (!upErr) {
               window.dispatchEvent(new CustomEvent(GEMINI_CACHE_UPDATED_EVENT));
+            } else if (/gemini_analysis/i.test(upErr.message ?? '') && !existingDesc && desc) {
+              await supabase.from('potholes').update({ description: desc }).eq('id', p.id);
             }
           }
         }
@@ -143,17 +148,23 @@ export function GeminiBatchFab({ potholes, railOpen, isMobile }: GeminiBatchFabP
         const analysis = await analyzeRoadImage(target);
         setGeminiBatchEntry(p.id, stamp, analysis);
         window.dispatchEvent(new CustomEvent(GEMINI_CACHE_UPDATED_EVENT));
+        // Persist the full verdict so every viewer (and the deployed dashboard) sees the same green/red markers.
         const desc = analysis.scene_summary.trim();
-        if (desc) {
-          const { error: descErr } = await supabase
-            .from('potholes')
-            .update({ description: desc })
-            .eq('id', p.id);
-          if (descErr) {
-            console.warn('[Gemini batch] description update:', p.id.slice(0, 8), descErr.message);
+        const update: { gemini_analysis: unknown; description?: string } = { gemini_analysis: analysis };
+        if (desc) update.description = desc;
+        const { error: upErr } = await supabase.from('potholes').update(update).eq('id', p.id);
+        if (upErr) {
+          // `gemini_analysis` column may be missing on older DBs — fall back to description-only.
+          if (/gemini_analysis/i.test(upErr.message ?? '')) {
+            if (desc) {
+              await supabase.from('potholes').update({ description: desc }).eq('id', p.id);
+            }
+            if (!firstError) firstError = `DB missing gemini_analysis column — apply latest migration.`;
           } else {
-            window.dispatchEvent(new CustomEvent(GEMINI_CACHE_UPDATED_EVENT));
+            console.warn('[Gemini batch] update:', p.id.slice(0, 8), upErr.message);
           }
+        } else {
+          window.dispatchEvent(new CustomEvent(GEMINI_CACHE_UPDATED_EVENT));
         }
         analyzed++;
       } catch (e) {
@@ -189,6 +200,9 @@ export function GeminiBatchFab({ potholes, railOpen, isMobile }: GeminiBatchFabP
   };
 
   const configured = geminiConfigured();
+  const enabled = configured && potholes.length > 0 && !running;
+  const pct = progress.total > 0 ? Math.min(100, Math.round((progress.index / progress.total) * 100)) : 0;
+  const ringDegrees = pct * 3.6;
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -200,28 +214,56 @@ export function GeminiBatchFab({ potholes, railOpen, isMobile }: GeminiBatchFabP
         )}
       >
         {running ? (
-          <div className="max-w-[min(18rem,calc(100vw-2rem))] rounded-xl border border-violet-200/80 bg-white/95 px-3 py-2 text-xs shadow-lg backdrop-blur-sm">
-            <div className="font-medium text-slate-900">Gemini batch</div>
-            <div className="mt-1 tabular-nums text-slate-600">
-              {progress.index}/{progress.total} · {progress.analyzed} new · {progress.skipped} skipped
-            </div>
-            {(progress.noImage > 0 || progress.failed > 0) && (
-              <div className="mt-0.5 text-[10px] text-slate-500">
-                {progress.noImage > 0 ? `${progress.noImage} no image` : null}
-                {progress.noImage > 0 && progress.failed > 0 ? ' · ' : null}
-                {progress.failed > 0 ? `${progress.failed} errors` : null}
+          <div className="w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-orange-200/70 bg-white/95 shadow-xl backdrop-blur-md">
+            <div className="flex items-center gap-2 bg-gradient-to-r from-orange-50 to-rose-50 px-3 py-2">
+              <Sparkle className="h-3.5 w-3.5 text-orange-600" strokeWidth={2} />
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-orange-700">
+                Gemini analyzing
               </div>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="mt-2 h-8 w-full border-violet-200 text-[11px]"
-              onClick={stopBatch}
-            >
-              <Square className="mr-1.5 h-3 w-3" strokeWidth={2} />
-              Stop after current
-            </Button>
+              <div className="ml-auto tabular-nums text-[11px] font-medium text-orange-700">
+                {pct}%
+              </div>
+            </div>
+            <div className="px-3 pb-3 pt-2">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-orange-100">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-orange-500 to-rose-500 transition-all duration-300 ease-out"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <div className="mt-2 flex items-baseline gap-1 text-xs text-slate-700">
+                <span className="tabular-nums font-medium text-slate-900">{progress.index}</span>
+                <span className="text-slate-400">/</span>
+                <span className="tabular-nums text-slate-500">{progress.total}</span>
+                <span className="ml-1.5 text-slate-400">·</span>
+                <span className="ml-1 tabular-nums text-emerald-600">{progress.analyzed} new</span>
+                {progress.skipped > 0 && (
+                  <>
+                    <span className="ml-1 text-slate-400">·</span>
+                    <span className="ml-1 tabular-nums text-slate-500">{progress.skipped} cached</span>
+                  </>
+                )}
+              </div>
+              {(progress.noImage > 0 || progress.failed > 0) && (
+                <div className="mt-1 text-[10px] text-slate-500">
+                  {progress.noImage > 0 ? `${progress.noImage} no image` : null}
+                  {progress.noImage > 0 && progress.failed > 0 ? ' · ' : null}
+                  {progress.failed > 0 ? (
+                    <span className="text-rose-600">{progress.failed} errors</span>
+                  ) : null}
+                </div>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-2.5 h-8 w-full border-orange-200 bg-white text-[11px] font-medium text-orange-700 hover:bg-orange-50 hover:text-orange-800"
+                onClick={stopBatch}
+              >
+                <Square className="mr-1.5 h-3 w-3" strokeWidth={2} />
+                Stop after current
+              </Button>
+            </div>
           </div>
         ) : null}
 
@@ -231,21 +273,48 @@ export function GeminiBatchFab({ potholes, railOpen, isMobile }: GeminiBatchFabP
               type="button"
               disabled={!configured || running || potholes.length === 0}
               onClick={() => void runBatch()}
-              className={cn(
-                'flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition focus-visible:outline focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2',
-                configured && potholes.length > 0 && !running
-                  ? 'bg-violet-700 text-white hover:bg-violet-800'
-                  : 'cursor-not-allowed bg-slate-300 text-slate-500',
-              )}
               aria-label="Run Gemini on all potholes"
+              className={cn(
+                'group relative flex h-12 w-12 items-center justify-center rounded-full transition-all duration-200',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/50 focus-visible:ring-offset-2',
+                enabled && 'hover:scale-[1.04] active:scale-95',
+                !enabled && !running && 'cursor-not-allowed',
+              )}
+              style={
+                running
+                  ? {
+                      backgroundImage: `conic-gradient(rgb(249 115 22) ${ringDegrees}deg, rgb(255 237 213) ${ringDegrees}deg)`,
+                      padding: '2px',
+                    }
+                  : undefined
+              }
             >
-              <Sparkles className="h-6 w-6" strokeWidth={1.75} aria-hidden />
+              <span
+                className={cn(
+                  'relative flex h-full w-full items-center justify-center rounded-full ring-1 transition-colors',
+                  running
+                    ? 'bg-white text-orange-600 ring-white'
+                    : enabled
+                      ? 'bg-orange-500 text-white ring-orange-500/20 shadow-sm group-hover:bg-orange-600'
+                      : 'bg-slate-100 text-slate-400 ring-slate-200 shadow-none',
+                )}
+              >
+                <Sparkle
+                  className="h-5 w-5"
+                  strokeWidth={1.75}
+                  aria-hidden
+                />
+              </span>
             </button>
           </TooltipTrigger>
-          <TooltipContent side="left" className="max-w-[240px] text-xs">
-            {configured
-              ? 'Analyze all loaded potholes with Gemini (skips rows already analyzed unless the image or record changed).'
-              : 'Add VITE_GEMINI_API_KEY or VITE_GEMINI_PROXY_URL to .env.local'}
+          <TooltipContent side="left" className="max-w-[260px] text-xs leading-relaxed">
+            {!configured
+              ? 'Add VITE_GEMINI_API_KEY or VITE_GEMINI_PROXY_URL to .env.local.'
+              : running
+                ? 'Gemini batch is running. Click the panel to stop.'
+                : potholes.length === 0
+                  ? 'No potholes loaded yet — load data first.'
+                  : `Analyze ${potholes.length} pothole${potholes.length === 1 ? '' : 's'} with Gemini. Skips rows already up-to-date.`}
           </TooltipContent>
         </Tooltip>
       </div>

@@ -9,6 +9,7 @@ import DocumentManagement from '@/components/features/DocumentManagement';
 import { GeminiBatchFab } from '@/components/features/GeminiBatchFab';
 import { Pothole, Status, Severity, PotholeFusion } from '@/types';
 import { parseBboxXyxy } from '@/lib/bbox';
+import { coerceGeminiAnalysis } from '@/lib/geminiBatchCache';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { X } from "lucide-react";
@@ -25,7 +26,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
  * when a marker is opened, so the detail view still works without them here.
  */
 const POTHOLE_LIST_COLUMNS =
-  'id, latitude, longitude, road_id, severity, status, detection_accuracy, report_date, scheduled_repair_date, completion_date, description, reported_by, fusion_ok, surface_area_m2, width_m, length_m, yolo_confidence, source, track_id, model_url, bbox_xyxy, frame_width, frame_height';
+  'id, latitude, longitude, road_id, severity, status, detection_accuracy, report_date, scheduled_repair_date, completion_date, description, reported_by, fusion_ok, surface_area_m2, width_m, length_m, yolo_confidence, source, track_id, model_url, bbox_xyxy, frame_width, frame_height, gemini_analysis';
 
 const Index = () => {
   const [potholes, setPotholes] = useState<Pothole[]>([]);
@@ -122,6 +123,10 @@ const Index = () => {
             frameHeight:
               'frame_height' in item && item.frame_height != null && Number.isFinite(Number(item.frame_height))
                 ? Number(item.frame_height)
+                : null,
+            geminiAnalysis:
+              'gemini_analysis' in item
+                ? coerceGeminiAnalysis((item as { gemini_analysis?: unknown }).gemini_analysis)
                 : null,
           };
         });
@@ -278,6 +283,10 @@ const Index = () => {
                 'frame_height' in data && data.frame_height != null && Number.isFinite(Number(data.frame_height))
                   ? Number(data.frame_height)
                   : null,
+              geminiAnalysis:
+                'gemini_analysis' in data
+                  ? coerceGeminiAnalysis((data as { gemini_analysis?: unknown }).gemini_analysis)
+                  : null,
             };
 
             setPotholes((prev) => {
@@ -288,7 +297,9 @@ const Index = () => {
               return next;
             });
             setSelectedPothole((prev) =>
-              prev?.id === updated.id ? { ...prev, description: updated.description } : prev,
+              prev?.id === updated.id
+                ? { ...prev, description: updated.description, geminiAnalysis: updated.geminiAnalysis }
+                : prev,
             );
           } catch (e) {
             console.warn('Realtime incremental update failed, falling back to full refetch', e);

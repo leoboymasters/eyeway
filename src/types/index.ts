@@ -1,3 +1,5 @@
+import type { RoadImageGeminiAnalysis } from './geminiAnalysis';
+
 export type Severity = 'low' | 'medium' | 'high' | 'critical';
 export type Status = 'reported' | 'inspected' | 'scheduled' | 'in-progress' | 'completed';
 
@@ -42,6 +44,8 @@ export interface Pothole {
   /** Cloud Run DA3 + fusion. */
   fusion?: PotholeFusion;
   model_url?: string;
+  /** Shared Gemini vision verdict (persisted server-side so every viewer sees the same green / red dot). */
+  geminiAnalysis?: RoadImageGeminiAnalysis | null;
 }
 
 export interface User {

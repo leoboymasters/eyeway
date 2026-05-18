@@ -3,7 +3,11 @@ import { mapboxgl, getMapboxAccessToken } from '@/lib/mapbox';
 import { getPotholeDetailsSidebarInsetPx } from '@/lib/mapLayout';
 import { cn } from '@/lib/utils';
 import { Pothole } from '@/types';
-import { GEMINI_CACHE_UPDATED_EVENT, isGeminiNotPotholeMark } from '@/lib/geminiBatchCache';
+import {
+  GEMINI_CACHE_UPDATED_EVENT,
+  geminiAnalysisIsNotPothole,
+  isGeminiNotPotholeMark,
+} from '@/lib/geminiBatchCache';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const SEVERITY_COLORS = {
@@ -529,7 +533,9 @@ export const MapboxView = forwardRef<MapboxViewRef, MapboxViewProps>(({ potholes
 
     // Add markers for potholes with road-embedded style
     potholes.forEach(pothole => {
-      const notPotholeAi = isGeminiNotPotholeMark(pothole.id);
+      // Prefer the persisted DB verdict (everyone sees the same dots), fall back to per-browser cache.
+      const notPotholeAi =
+        geminiAnalysisIsNotPothole(pothole.geminiAnalysis) || isGeminiNotPotholeMark(pothole.id);
       // Create the marker container
       const el = document.createElement('div');
       el.className = 'pothole-marker';

@@ -191,25 +191,50 @@ async function analyzeViaGeminiApi(imageDataUrl: string): Promise<RoadImageGemin
     },
   });
 
-  const prompt = `You are reviewing a single image from a road-facing camera (possibly a cropped ROI around a detector box).
-Classify whether the image plausibly shows a pothole or road surface damage vs a likely false alarm (shadows, patches, joints, leaves, wet glare, etc.).
+  const prompt = `Respond in English.
 
-scene_summary (maintenance-facing, not a "photo caption"):
-Write 3–6 complete sentences that focus on the ROAD SURFACE and the ALLEGED DEFECT or what actually explains the detection.
-Start with the pavement and the feature in frame (e.g. cavity, edge breakup, patch, crack, joint, water in a hollow, alligator cracking). Mention shape, approximate extent in the image, edge sharpness, interior shadow/texture, material contrast, and anything that supports or contradicts pothole vs false alarm.
+You are reviewing a tight crop around a single suspected pothole / road-surface defect. Exactly ONE feature is under review — ignore everything else in the frame.
 
-FORBIDDEN in scene_summary: do not describe the camera, vehicle, dashcam, "forward view", "looking ahead", "the image shows", "we see a view from", "this photograph", or similar meta-framing. Jump straight to what is on the road.
+CLASSIFY whether that one feature is a real road defect or a false alarm.
 
-If it is likely a false positive, still describe the road feature you think it is (e.g. sealed joint, wet stripe, tar patch) concretely—no vehicle perspective filler.
-Do not trail off with an ellipsis or end mid-phrase.
+VISUAL ONTOLOGY (use this to discriminate — do NOT mention measurements, centimeters, or sizes anywhere; the system already has measurement data):
+- Pothole: cavity with missing material, ragged or undercut edges, interior shadow or visible depth, often exposed aggregate.
+- Tar patch / sealed repair: dark filled blob or rectangle, smooth top, flush with the surface, NO depth.
+- Sealed joint: linear dark band, straight, follows pavement panel edges.
+- Manhole / drain rim: circular metal or concrete, often labeled, flush or slightly raised.
+- Painted marking / arrow: high-contrast paint on intact surface, geometric, no texture loss.
+- Wet patch: darker than surroundings, irregular, no rim, may reflect sky.
+- Shadow: soft edges, follows the outline of a nearby object, no material or texture change underneath.
+- Loose debris / leaf: sits on top of the surface, intact pavement underneath.
 
-Be conservative: use "uncertain" when quality or framing is ambiguous.
-review_filter:
-- keep: credible road defect / pothole evidence
-- manual_review: mixed or unclear; human should look
-- likely_false_positive: probably not a pothole (explain in caveats)
+scene_summary (3 sentences, maintenance-facing): describe ONLY the one feature.
+The first sentence MUST start with a noun naming the feature ("Cavity…", "Patch…", "Joint…", "Shadow…", "Manhole…", "Painted marking…", etc.). Do NOT start with "The…", "A…", "This…", "It…".
+Cover the three most diagnostic cues: shape, edge character (sharp / ragged / soft / linear), and interior — exposed aggregate, shadow, water, fill material, or intact surface. Mention a depth cue (cast shadow, color drop-off) when visible.
 
-Return JSON matching the schema only.`;
+FORBIDDEN in scene_summary:
+- Any measurement language: centimeters, meters, inches, "~", "approximately X cm", "size of a", "diameter", "wide", "deep" in numeric terms.
+- Describing the wider road / surrounding pavement / general condition.
+- Camera or vehicle meta: "the image shows", "forward view", "dashcam", "we see", "this photograph", "looking ahead".
+- Ellipses or trailing-off sentences.
+
+GOOD vs BAD scene_summary examples:
+- GOOD: "Cavity with ragged asphalt edges and missing material along the rim. Interior is dark with exposed aggregate and a defined cast shadow on the far edge. The drop-off in tone indicates real depth rather than a surface mark."
+- BAD: "The road surface consists of aging concrete panels with longitudinal cracking and surface degradation."  (whole-road description)
+- BAD: "A round pothole around 25 cm across with a depth of roughly 4 cm."  (measurements — forbidden)
+- BAD: "The image shows a forward view of a road where we see a depression."  (camera meta)
+
+confidence_0_to_1: probability that this feature is a real road defect requiring maintenance. Calibration — 0.85+ obvious defect, 0.5–0.7 plausible, <0.3 likely false alarm.
+
+CONSISTENCY (required — these MUST agree):
+- assessment=likely_pothole    ⇒ review_filter=keep
+- assessment=unlikely_pothole  ⇒ review_filter=likely_false_positive
+- assessment=uncertain         ⇒ review_filter=manual_review
+
+QUALITY FAIL-FAST: if the feature is occluded by the vehicle hood, motion-blurred, off-road (sky, sidewalk, grass, vehicle body), or unresolvable, set assessment=uncertain, review_filter=manual_review, and explain the limitation in caveats.
+
+distinguishing_features: short bullet-style entries that name the evidence supporting your assessment (works for both pothole and false-positive verdicts).
+visible_issues: surface problems actually visible in frame.
+road_surface / lighting_conditions: broader context — may describe the surrounding scene.`;
 
   try {
     const result = await model.generateContent([

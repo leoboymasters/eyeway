@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { MapPin, Maximize2, X } from 'lucide-react';
 import {
   GEMINI_CACHE_UPDATED_EVENT,
+  coerceGeminiAnalysis,
   getGeminiBatchEntry,
   geminiRowStamp,
 } from '@/lib/geminiBatchCache';
@@ -189,7 +190,8 @@ export const PotholeDetails = ({
     if (prevPotholeIdRef.current !== pothole.id) {
       prevPotholeIdRef.current = pothole.id;
       setDetailRowStamp(null);
-      setCachedGemini(null);
+      // Seed from the list-level row so the panel doesn't flash empty while the detail fetch runs.
+      setCachedGemini(pothole.geminiAnalysis ?? null);
     }
     const r0 = resolvePreviewAndCrop(pothole.images[0], pothole.frameImageUrl);
     setPreviewUrl(r0.preview);
@@ -214,7 +216,15 @@ export const PotholeDetails = ({
         frame_image_url: data.frame_image_url,
       });
       setDetailRowStamp(stamp);
-      reconcileGeminiCache(pothole.id, stamp);
+      // DB-backed analysis wins over the localStorage cache; cache is only the offline fallback.
+      const dbAnalysis = coerceGeminiAnalysis(
+        'gemini_analysis' in data ? (data as { gemini_analysis?: unknown }).gemini_analysis : null,
+      );
+      if (dbAnalysis) {
+        setCachedGemini(dbAnalysis);
+      } else {
+        reconcileGeminiCache(pothole.id, stamp);
+      }
 
       const r = resolvePreviewAndCrop(data.image_url, data.frame_image_url);
       setPreviewUrl(r.preview);
